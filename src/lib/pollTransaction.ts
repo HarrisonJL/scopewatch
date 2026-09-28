@@ -60,6 +60,10 @@ export async function pollTransaction(
   const targetNum = target === "FINALIZED" ? "7" : "5";
   while (!cancelled()) {
     try {
+      // getTransaction's real shape (last_round/last_leader/txExecutionResultName
+      // etc.) isn't in genlayer-js 2.0.0-rc.1's published types yet - confirmed
+      // live against real transactions, just ahead of the RC's .d.ts.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tx = (await client.getTransaction({ hash: hash as `0x${string}` & { length: 66 } })) as any;
       if (tx) {
         const statusNum = String(tx.status);
@@ -93,6 +97,7 @@ export async function pollTransaction(
 // call reverts, there's nothing to retry about it. Genuine consensus
 // trouble (real disagreement or timeouts) has no such field. This
 // distinguishes them rather than showing the same message for both.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function describeFailure(tx: any, rejectionHint: string): string {
   const statusNum = String(tx.status);
   if (tx?.txExecutionResultName === "FINISHED_WITH_ERROR") {

@@ -80,6 +80,13 @@ export function useAuditScopeState() {
   }, []);
 
   useEffect(() => {
+    // Intentional one-time initial load, not a synchronization loop - see
+    // the module comment above for why this app deliberately has no
+    // background poll. `refresh` can set state synchronously on its very
+    // first early-return branch (NEXT_PUBLIC_CONTRACT_ADDRESS unset),
+    // which is what react-hooks/set-state-in-effect is flagging; that
+    // branch only ever runs once, on mount, so it can't cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
 

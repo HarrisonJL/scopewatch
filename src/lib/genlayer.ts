@@ -18,7 +18,12 @@ const EXPLORER_URL =
 // Studio Next's writeContract/deployContract calls fail with
 // "FeesDistributionMissing" unless fees are computed and attached
 // explicitly - confirmed directly against the live network, not from docs.
+// estimateTransactionFees isn't in genlayer-js 2.0.0-rc.1's published
+// types yet (it's a real, working method - confirmed live - just ahead of
+// the RC's .d.ts), hence the narrow `any` cast here rather than fighting
+// an incomplete pre-release type surface.
 export async function estimateAndAttachFees(client: GenLayerClient) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fees = await (client as any).estimateTransactionFees({});
   return { distribution: fees.distribution, feeValue: fees.feeValue };
 }

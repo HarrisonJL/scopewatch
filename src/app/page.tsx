@@ -30,6 +30,14 @@ export default function Home() {
   // interval - Studio Next's rate limit is a real hourly cap (500/hour),
   // confirmed live, not just a burst limit.
   const retryAttempt = useRef(0);
+  // A retry needs to call "the current refreshData", but referencing the
+  // const being defined from inside its own initializer is a real
+  // footgun ESLint's react-hooks/immutability rule now catches (it works
+  // at runtime here, since the closure isn't invoked until well after the
+  // assignment completes, but it's fragile and unclear to a reader). This
+  // ref indirection is the standard fix - always calls the latest version
+  // without the function referencing its own binding.
+  const refreshDataRef = useRef<() => void>(() => {});
 
   const refreshData = useCallback(async () => {
     if (!isConfigured()) return;
@@ -44,14 +52,26 @@ export default function Home() {
       setDataError(err instanceof Error ? err.message : "Failed to load targets.");
       const delay = Math.min(5000 * 2 ** retryAttempt.current, 60000);
       retryAttempt.current += 1;
-      setTimeout(refreshData, delay);
+      setTimeout(() => refreshDataRef.current(), delay);
     }
   }, []);
+  // Refs must be written outside of render (StrictMode double-invokes the
+  // render body, and concurrent rendering can discard an in-progress one)
+  // - a bare assignment here, rather than inside an effect, is exactly
+  // the footgun the ref-updating pattern above exists to avoid.
+  useEffect(() => {
+    refreshDataRef.current = refreshData;
+  });
 
   // Loads once on mount - no interval. A background timer here would be
   // pure unnecessary load on a shared, rate-limited endpoint; refreshAll
   // (below) covers "I just did something, check for real" instead.
+  // react-hooks/set-state-in-effect flags any effect body that calls an
+  // async function which eventually sets state, regardless of whether
+  // anything happens before the first await; this effect only ever runs
+  // once, on mount, so it can't cascade regardless.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshData();
   }, [refreshData]);
 
